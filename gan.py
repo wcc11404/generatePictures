@@ -60,26 +60,35 @@ def discriminator(x):
     D_prob = tf.nn.sigmoid(D_logit)
     return D_prob, D_logit
 
+#生成模型
 G_sample = generator(Z)
+#判别模型的真数据部分
 D_real, D_logit_real = discriminator(X)
-D_fake, D_logit_fake = discriminator(G_sample)
+#判别模型的假数据部分
+D_fake, D_logit_fake = discriminator(G_sample)      #如果weight和bias放在函数中定义，需要reuse,详情参见with tf.variable_scope()的用法
 
+############两种loss计算方式########
+#因为D_real和D_fake的输出只有1维，所以可以这样，否则用下边的loss计算方式，猜测
 D_loss = -tf.reduce_mean(tf.log(D_real) + tf.log(1. - D_fake))
-G_loss = -tf.reduce_mean(tf.log(D_fake))
+G_loss = -tf.reduce_mean(tf.log(D_fake))    #比起最小化tf.reduce_mean(1 - tf.log(D_fake))，最大化tf.reduce_mean(tf.log(D_fake))更好，论文说的
 
+#reduce_mean取平均值，sigmoid_cross_entropy_with_logits先进行sigmoid函数，再求交叉熵
 D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_real, labels=tf.ones_like(D_logit_real)))
 D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_fake, labels=tf.zeros_like(D_logit_fake)))
 D_loss = D_loss_real + D_loss_fake
 G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_fake, labels=tf.ones_like(D_logit_fake)))
+##################################
 
+#优化方法用adam
 D_optimizer = tf.train.AdamOptimizer().minimize(D_loss, var_list=theta_D)
 G_optimizer = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
 
+#生成噪音数据
 def sample_Z(m, n):
     '''Uniform prior for G(Z)'''
     return np.random.uniform(-1., 1., size=[m, n])
 
-
+#绘图函数
 def plot(samples):
     fig = plt.figure(figsize=(4, 4))
     gs = gridspec.GridSpec(4, 4)
@@ -99,6 +108,7 @@ if not os.path.exists('out/'):
 
 i = 0
 
+#初始化变量
 sess.run(tf.initialize_all_variables())
 for it in range(1001):
     if it % 1000 == 0:
@@ -109,9 +119,10 @@ for it in range(1001):
         i += 1
         plt.close(fig)
 
-    X_mb, _ = mnist.train.next_batch(mb_size)
+    #取一个batch的数据
+    X_mb, _ = mnist.train.next_batch(mb_size)   #y值也就是label写死在前文的代码中了
 
-    _, D_loss_curr = sess.run([D_optimizer, D_loss], feed_dict={X: X_mb, Z: sample_Z(mb_size, Z_dim)})
+    _, D_loss_curr = sess.run([D_optimizer, D_loss], feed_dict={X: X_mb, Z: sample_Z(mb_size, Z_dim)})#调用D_optimizer相当于一次前馈和反馈，D_loss调用只是前馈
     _, G_loss_curr = sess.run([G_optimizer, G_loss], feed_dict={Z: sample_Z(mb_size, Z_dim)})
 
     if it % 1000 == 0:
