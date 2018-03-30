@@ -30,7 +30,6 @@ D_b1 = bias_var([128], 'D_b1')
 D_W2 = weight_var([128, 1], 'D_W2')
 D_b2 = bias_var([1], 'D_b2')
 
-
 theta_D = [D_W1, D_W2, D_b1, D_b2]
 
 
@@ -44,12 +43,15 @@ G_b1 = bias_var([128], 'G_B1')
 G_W2 = weight_var([128, 784], 'G_W2')
 G_b2 = bias_var([784], 'G_B2')
 
+keep_prob = tf.placeholder(tf.float32)
+
 theta_G = [G_W1, G_W2, G_b1, G_b2]
 
 def generator(z):
     G_h1 = tf.nn.relu(tf.matmul(z, G_W1) + G_b1)
     G_log_prob = tf.matmul(G_h1, G_W2) + G_b2
     G_prob = tf.nn.sigmoid(G_log_prob)
+
 
     return G_prob
 
@@ -58,7 +60,8 @@ def discriminator(x):
     D_h1 = tf.nn.relu(tf.matmul(x, D_W1) + D_b1)
     D_logit = tf.matmul(D_h1, D_W2) + D_b2
     D_prob = tf.nn.sigmoid(D_logit)
-    return D_prob, D_logit
+    D_drop = tf.nn.dropout(D_prob, keep_prob)  # dropout，keep_prob代表激活的神经元占总体的比例
+    return D_drop, D_logit
 
 #生成模型
 G_sample = generator(Z)
@@ -103,27 +106,26 @@ def plot(samples):
 
     return fig
 
-if not os.path.exists('out/'):
-    os.makedirs('out/')
+if not os.path.exists('out1/'):
+    os.makedirs('out1/')
 
 i = 0
 
 #初始化变量
 sess.run(tf.initialize_all_variables())
-for it in range(1001):
+for it in range(1000000):
     if it % 1000 == 0:
-        samples = sess.run(G_sample, feed_dict={
-                           Z: sample_Z(16, Z_dim)})  # 16*784
+        samples = sess.run(G_sample, feed_dict={Z: sample_Z(16, Z_dim),keep_prob:1.0})  # 16*784
         fig = plot(samples)
-        plt.savefig('out/{}.png'.format(str(i).zfill(3)), bbox_inches='tight')
+        plt.savefig('out1/{}.png'.format(str(i).zfill(3)), bbox_inches='tight')
         i += 1
         plt.close(fig)
 
     #取一个batch的数据
     X_mb, _ = mnist.train.next_batch(mb_size)   #y值也就是label写死在前文的代码中了
 
-    _, D_loss_curr = sess.run([D_optimizer, D_loss], feed_dict={X: X_mb, Z: sample_Z(mb_size, Z_dim)})#调用D_optimizer相当于一次前馈和反馈，D_loss调用只是前馈
-    _, G_loss_curr = sess.run([G_optimizer, G_loss], feed_dict={Z: sample_Z(mb_size, Z_dim)})
+    _, D_loss_curr = sess.run([D_optimizer, D_loss], feed_dict={X: X_mb, Z: sample_Z(mb_size, Z_dim),keep_prob:0.5})#调用D_optimizer相当于一次前馈和反馈，D_loss调用只是前馈
+    _, G_loss_curr = sess.run([G_optimizer, G_loss], feed_dict={Z: sample_Z(mb_size, Z_dim),keep_prob:0.5})
 
     if it % 1000 == 0:
         print('Iter: {}'.format(it))
