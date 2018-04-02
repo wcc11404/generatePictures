@@ -1,7 +1,12 @@
 import numpy as np
-from dcgan_mnist import *
+import dcgan_mnist
+import dcgan
 import tqdm
 
-DC=DCGAN()
+# DC=dcgan_mnist.DCGAN()
 # DC.trainModelLoop()
-DC.testModel(isLoadModel=True)
+# DC.testModel(isLoadModel=True)
+DC1=dcgan.DCGAN()
+#DC1.trainModelLoop()
+DC1.trainModel(100,isShowMessage=True,isSaveModel=True)
+DC1.testModel(isLoadModel=True)
