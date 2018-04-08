@@ -17,7 +17,7 @@ def bias_var(shape, name):
 
 #生成噪音向量
 def sample_Z(m, n):
-    return np.random.uniform(-1., 1., size=[m, n])
+    return np.random.normal(size=[m, n]).astype('float32')
 
 class WGANGP(object):
     def __init__(self):
@@ -39,6 +39,7 @@ class WGANGP(object):
         self.beta2 = 0.9  # 模型默认=。=我也不确定，规范化参数？
         self.epochs = 20000  # 模型默认训练批次
         self.Model_dir = "WGANGP"  # 模型参数默认保存位置
+        self.testsample=sample_Z(self.batch_size, self.z_dim)
 
         self.buildModel()
 
@@ -189,7 +190,7 @@ class WGANGP(object):
             else:
                 self.saveModel(dir)
 
-    def trainModelLoop(self,maxsize=1000,init=False,isSavePicture=False,dir=None):
+    def trainModelLoop(self,maxsize=10000,epochs=10,testepochs=50,init=True,isSavePicture=False,dir=None):
         if dir==None:
             dir=self.Model_dir
         totalEpochs=0
@@ -198,25 +199,31 @@ class WGANGP(object):
 
         if not init:
             self.loadModel()
+            if os.path.exists(dir+"/testsample.npy"):
+                self.testsample=np.load(dir+"/testsample.npy")
+            else:
+                np.save(dir + '/testsample.npy', self.testsample)
             try:
                 f = open(dir + "/out/record.txt", "r")
             except:
                 f = open(dir + "/out/record.txt", "w")
                 f.write(str(totalEpochs))
             else:
-                totalEpochs=int(f.readline())+1
+                totalEpochs=int(f.readline())+epochs
             f.close()
+        else:
+            np.save(dir+'/testsample.npy',self.testsample)
 
         for i in tqdm.tqdm(range(maxsize)):
-            self.trainModel(epochs=100, isSaveModel=True,dir=dir)
+            self.trainModel(epochs=epochs, isSaveModel=True,dir=dir)
 
-            totalEpochs = totalEpochs + 1
+            totalEpochs = totalEpochs + epochs
             f = open(dir + "/out/record.txt", "w")
             f.write(str(totalEpochs))
             f.close()
 
-            if (isSavePicture==True and (totalEpochs-1) % 5 == 0):
-                self.testModel(isSave=True,saveNum=(totalEpochs-1)//5,dir=dir)
+            if (isSavePicture==True and (totalEpochs-epochs) % testepochs == 0):
+                self.testModel(isSave=True,saveNum=totalEpochs-epochs,dir=dir)
 
     def testModel(self, dir=None, isLoadModel=False,isSave=False,saveNum=0):
         if (dir == None):
@@ -224,7 +231,7 @@ class WGANGP(object):
         if (isLoadModel == True):
             self.loadModel(dir)
 
-        samples = self.sess.run(self.G,feed_dict={self.z: sample_Z(self.batch_size, self.z_dim)})
+        samples = self.sess.run(self.G,feed_dict={self.z: self.testsample})
 
         figsize = math.sqrt(self.batch_size)
         if (figsize - figsize // 1 > 0):
@@ -248,7 +255,7 @@ class WGANGP(object):
 
         fig = plot(samples)
         if isSave==True:
-            plt.savefig(dir+'/out/{}.png'.format(str(saveNum).zfill(5)), bbox_inches='tight')
+            plt.savefig(dir+'/out/{}.png'.format(str(saveNum).zfill(6)), bbox_inches='tight')
         else:
             plt.show(fig)
         plt.close(fig)

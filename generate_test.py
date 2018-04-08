@@ -16,4 +16,4 @@ import tqdm
 # w.trainModelLoop(init=False,isSavePicture=True)
 # w.testModel(isLoadModel=True)
 wgp=wgangp.WGANGP()
-wgp.trainModelLoop(init=True,isSavePicture=True)
+wgp.trainModelLoop(init=False,isSavePicture=True)
